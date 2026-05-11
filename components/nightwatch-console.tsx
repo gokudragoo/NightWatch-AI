@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, ArrowRight, CheckCircle2, KeyRound, Moon, Radio, Shield, Sparkles, Wallet, Zap } from "lucide-react"
+import { AlertTriangle, ArrowRight, Brain, CheckCircle2, KeyRound, Moon, Radio, RefreshCw, Shield, Sparkles, Wallet, Zap } from "lucide-react"
 import { keccak256, toHex } from "viem"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import type { NightWatchIntel, ProtectionMode, SodexMarket, SodexTicker } from "@/lib/nightwatch/types"
+import type { NightWatchAiBrief, NightWatchIntel, ProtectionMode, SodexMarket, SodexTicker } from "@/lib/nightwatch/types"
 import { VALUECHAIN_TESTNET } from "@/lib/nightwatch/valuechain"
 
 type EthereumProvider = {
@@ -43,6 +43,26 @@ function normalizeWalletSignature(signature: string) {
   return `0x${clean.slice(0, -2)}${normalizedV}`
 }
 
+async function requestNightWatchAiBrief(input: {
+  intel: NightWatchIntel
+  market: SodexMarket
+  mode: ProtectionMode
+  portfolioValue: number
+  sleepMode: boolean
+}) {
+  const response = await fetch("/api/nightwatch/brief", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  })
+
+  if (!response.ok) {
+    throw new Error("Unable to create NightWatch AI brief.")
+  }
+
+  return response.json() as Promise<NightWatchAiBrief>
+}
+
 export function NightWatchConsole() {
   const [mode, setMode] = useState<ProtectionMode>("balanced")
   const [sleepMode, setSleepMode] = useState(true)
@@ -53,13 +73,15 @@ export function NightWatchConsole() {
   const [accountId, setAccountId] = useState("")
   const [selectedSymbol, setSelectedSymbol] = useState("vBTC_vUSDC")
   const [status, setStatus] = useState("NightWatch is warming up the risk engine.")
+  const [aiBrief, setAiBrief] = useState<NightWatchAiBrief | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isBriefLoading, setIsBriefLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     let mounted = true
 
-    async function load() {
+    async function load(options: { withBrief?: boolean } = { withBrief: true }) {
       setIsLoading(true)
       const [intelResponse, marketResponse] = await Promise.all([
         fetch(`/api/nightwatch/intel?mode=${mode}`).then((res) => res.json()),
@@ -73,6 +95,26 @@ export function NightWatchConsole() {
       setStatus(
         `${intelResponse.sourceStatus === "live" ? "Live SoSoValue" : "Fallback"} intelligence synced with ${marketResponse.sourceStatus === "live" ? "SoDEX testnet" : "cached"} execution routes.`,
       )
+
+      if (options.withBrief) {
+        setIsBriefLoading(true)
+        requestNightWatchAiBrief({
+          intel: intelResponse,
+          market: marketResponse,
+          mode,
+          portfolioValue,
+          sleepMode,
+        })
+          .then((brief) => {
+            if (mounted) setAiBrief(brief)
+          })
+          .catch((error) => {
+            if (mounted) setStatus(error instanceof Error ? error.message : "Unable to create NightWatch AI brief.")
+          })
+          .finally(() => {
+            if (mounted) setIsBriefLoading(false)
+          })
+      }
     }
 
     load().catch((error) => {
@@ -80,7 +122,7 @@ export function NightWatchConsole() {
       setStatus(error instanceof Error ? error.message : "Unable to refresh NightWatch data.")
     })
 
-    const interval = window.setInterval(load, 45_000)
+    const interval = window.setInterval(() => load({ withBrief: false }), 45_000)
     return () => {
       mounted = false
       window.clearInterval(interval)
@@ -95,6 +137,19 @@ export function NightWatchConsole() {
   const hedgeUsd = Math.round((portfolioValue * modeCopy[mode].hedge) / 100)
   const estimatedProtected = Math.round((portfolioValue * (intel?.score || 40)) / 140)
   const dangerScore = intel?.score || 0
+
+  async function refreshAiBrief() {
+    if (!intel || !market) return
+
+    setIsBriefLoading(true)
+    try {
+      setAiBrief(await requestNightWatchAiBrief({ intel, market, mode, portfolioValue, sleepMode }))
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to create NightWatch AI brief.")
+    } finally {
+      setIsBriefLoading(false)
+    }
+  }
 
   async function connectWallet() {
     const ethereum = getEthereum()
@@ -238,6 +293,22 @@ export function NightWatchConsole() {
             The guardian reads market intelligence, scores danger, and prepares signed ValueChain protection orders when
             Sleep Mode is active.
           </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {[
+              { label: "SoSoValue", live: intel?.sourceStatus === "live" },
+              { label: "SoDEX", live: market?.sourceStatus === "live" },
+              { label: "OpenAI", live: aiBrief?.sourceStatus === "openai" },
+            ].map((source) => (
+              <span
+                key={source.label}
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  source.live ? "border-green-300/40 bg-green-300/10 text-green-100" : "border-white/15 bg-white/5 text-white/55"
+                }`}
+              >
+                {source.label} {source.live ? "live" : "ready"}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-6 lg:gap-8 items-stretch">
@@ -269,6 +340,42 @@ export function NightWatchConsole() {
             </div>
 
             <p className="text-white/75 leading-relaxed mb-8">{intel?.summary || status}</p>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5 mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2 text-white font-semibold">
+                  <Brain className="w-4 h-4" />
+                  OpenAI risk brief
+                </div>
+                <button
+                  onClick={refreshAiBrief}
+                  disabled={isBriefLoading || !intel || !market}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-medium text-white/80 transition-all duration-300 hover:bg-white/15 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isBriefLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {isBriefLoading ? "Generating portfolio brief..." : aiBrief?.headline || "Waiting for market context"}
+              </h3>
+              <p className="text-sm text-white/65 leading-relaxed mb-4">
+                {aiBrief?.briefing || "NightWatch will summarize the latest SoSoValue signals and SoDEX route once the dashboard syncs."}
+              </p>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 mb-4">
+                <div className="text-xs uppercase tracking-wide text-white/40 mb-1">Execution rationale</div>
+                <p className="text-sm text-white/70 leading-relaxed">
+                  {aiBrief?.tradeRationale || "Wallet approval remains required before any SoDEX testnet order is submitted."}
+                </p>
+              </div>
+              <div className="grid sm:grid-cols-3 gap-2">
+                {(aiBrief?.nextActions || ["Sync data", "Review policy", "Prepare order"]).map((action) => (
+                  <div key={action} className="rounded-xl bg-white/5 px-3 py-2 text-xs text-white/65">
+                    {action}
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="grid sm:grid-cols-3 gap-3 mb-8">
               {(intel?.actions || []).map((action) => (

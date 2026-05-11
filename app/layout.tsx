@@ -22,7 +22,7 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "NightWatch AI - Autonomous Crypto Risk Guardian",
   description:
-    "NightWatch AI monitors SoSoValue intelligence and prepares SoDEX ValueChain protection orders for crypto portfolios while traders sleep.",
+    "NightWatch AI monitors SoSoValue intelligence, explains overnight crypto risk with OpenAI, and prepares SoDEX ValueChain protection orders while traders sleep.",
   generator: "NightWatch AI",
 }
 
