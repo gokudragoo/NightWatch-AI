@@ -35,7 +35,7 @@ export function HeroSection() {
         {/* Badge */}
         <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium mb-8 mt-12 animate-fade-in-badge">
           <span className="w-2 h-2 bg-white/60 rounded-full mr-2 animate-pulse"></span>
-          SoSoValue intelligence + SoDEX execution
+          SoSoValue intelligence + OpenAI briefs + SoDEX execution
         </div>
 
         {/* Main Heading */}
@@ -61,8 +61,8 @@ export function HeroSection() {
 
         {/* Subheading */}
         <p className="text-base sm:text-xl md:text-2xl text-white text-balance max-w-sm sm:max-w-3xl mx-auto mb-8 sm:mb-12 leading-relaxed px-4 sm:px-0 animate-fade-in-subheading font-light">
-          NightWatch AI monitors crypto markets, scores danger from SoSoValue intelligence, and prepares SoDEX
-          ValueChain protection actions before volatility can wreck the morning.
+          NightWatch AI monitors crypto markets, explains risk with OpenAI, and prepares SoDEX ValueChain protection
+          actions before volatility can wreck the morning.
         </p>
 
         {/* CTA Buttons */}
@@ -101,6 +101,7 @@ export function HeroSection() {
                 <div className="text-base sm:text-lg font-semibold">ETH</div>
                 <div className="text-base sm:text-lg font-semibold">SOL</div>
                 <div className="text-base sm:text-lg font-semibold">SoSoValue</div>
+                <div className="text-base sm:text-lg font-semibold">OpenAI</div>
                 <div className="text-base sm:text-lg font-semibold">SoDEX</div>
                 <div className="text-base sm:text-lg font-semibold">ValueChain</div>
               </div>
@@ -110,6 +111,7 @@ export function HeroSection() {
                 <div className="text-base sm:text-lg font-semibold">ETH</div>
                 <div className="text-base sm:text-lg font-semibold">SOL</div>
                 <div className="text-base sm:text-lg font-semibold">SoSoValue</div>
+                <div className="text-base sm:text-lg font-semibold">OpenAI</div>
                 <div className="text-base sm:text-lg font-semibold">SoDEX</div>
                 <div className="text-base sm:text-lg font-semibold">ValueChain</div>
               </div>
@@ -131,6 +133,7 @@ export function HeroSection() {
                 <div className="text-sm font-semibold">ETH</div>
                 <div className="text-sm font-semibold">SOL</div>
                 <div className="text-sm font-semibold">SoSoValue</div>
+                <div className="text-sm font-semibold">OpenAI</div>
                 <div className="text-sm font-semibold">SoDEX</div>
                 <div className="text-sm font-semibold">ValueChain</div>
               </div>
@@ -140,6 +143,7 @@ export function HeroSection() {
                 <div className="text-sm font-semibold">ETH</div>
                 <div className="text-sm font-semibold">SOL</div>
                 <div className="text-sm font-semibold">SoSoValue</div>
+                <div className="text-sm font-semibold">OpenAI</div>
                 <div className="text-sm font-semibold">SoDEX</div>
                 <div className="text-sm font-semibold">ValueChain</div>
               </div>

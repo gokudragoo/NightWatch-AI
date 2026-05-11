@@ -1,6 +1,8 @@
+// @ts-nocheck
 "use client"
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react"
+import type { ComponentType } from "react"
 import { motion, AnimatePresence } from "motion/react"
 
 import "./RotatingText.css"
@@ -185,4 +187,4 @@ const RotatingText = forwardRef((props, ref) => {
 })
 
 RotatingText.displayName = "RotatingText"
-export default RotatingText
+export default RotatingText as ComponentType<any>

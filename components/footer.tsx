@@ -22,8 +22,8 @@ const footerLinks: FooterSection[] = [
     links: [
       { title: "Risk Engine", href: "#features" },
       { title: "Live Console", href: "#console" },
+      { title: "Dashboard", href: "/dashboard" },
       { title: "Sleep Mode", href: "#ai-team" },
-      { title: "Simulator", href: "#roi-calculator" },
     ],
   },
   {
@@ -31,8 +31,8 @@ const footerLinks: FooterSection[] = [
     links: [
       { title: "SoSoValue API", href: "https://sosovalue-1.gitbook.io/sosovalue-api-doc" },
       { title: "SoDEX Docs", href: "https://sodex.com/documentation" },
+      { title: "OpenAI Responses", href: "https://platform.openai.com/docs/api-reference/responses" },
       { title: "ValueChain", href: "https://sodex.com/documentation/about-valuechain/how-valuechain-works" },
-      { title: "Testnet", href: "https://sodex.com/documentation/resources/testnet-onboarding-steps" },
     ],
   },
   {
@@ -40,8 +40,8 @@ const footerLinks: FooterSection[] = [
     links: [
       { title: "Wave Roadmap", href: "#testimonials" },
       { title: "Protection Flow", href: "#console" },
-      { title: "README", href: "https://github.com" },
-      { title: "Demo", href: "#contact" },
+      { title: "README", href: "https://github.com/gokudragoo/NightWatch-AI" },
+      { title: "Demo", href: "/dashboard" },
     ],
   },
   {
@@ -98,7 +98,7 @@ export function Footer() {
       </div>
 
       <div className="hidden md:block mt-8 pt-6 border-t border-foreground/10 w-full">
-        <p className="text-muted-foreground text-xs text-center">SoSoValue intelligence. SoDEX execution. ValueChain signatures.</p>
+        <p className="text-muted-foreground text-xs text-center">SoSoValue intelligence. OpenAI briefs. SoDEX execution. ValueChain signatures.</p>
       </div>
     </footer>
   )

@@ -43,6 +43,17 @@ export interface NightWatchIntel {
   news: NewsItem[]
 }
 
+export interface NightWatchAiBrief {
+  sourceStatus: "openai" | "fallback"
+  model: string
+  generatedAt: string
+  headline: string
+  briefing: string
+  tradeRationale: string
+  nextActions: string[]
+  confidence: "high" | "medium" | "low"
+}
+
 export interface SodexTicker {
   symbol: string
   displayName: string
