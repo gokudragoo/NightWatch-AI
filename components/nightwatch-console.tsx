@@ -6,7 +6,7 @@ import { keccak256, toHex } from "viem"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import type { NightWatchIntel, ProtectionMode, SodexMarket, SodexTicker } from "@/lib/nightwatch/types"
-import { VALUECHAIN_TESTNET } from "@/lib/nightwatch/sodex"
+import { VALUECHAIN_TESTNET } from "@/lib/nightwatch/valuechain"
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown>

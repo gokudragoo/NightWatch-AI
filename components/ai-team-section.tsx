@@ -97,11 +97,13 @@ const conversations = [
   },
 ]
 
+type ConversationMessage = (typeof conversations)[number]["messages"][number]
+
 export function AITeamSection() {
   const sectionRef = useRef<HTMLElement>(null) // Added section ref for intersection observer
   const [isVisible, setIsVisible] = useState(false)
   const [currentConversation, setCurrentConversation] = useState(0)
-  const [displayedMessages, setDisplayedMessages] = useState<any[]>([])
+  const [displayedMessages, setDisplayedMessages] = useState<ConversationMessage[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)

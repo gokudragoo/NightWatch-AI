@@ -1,16 +1,5 @@
 import type { SodexMarket, SodexTicker } from "./types"
-
-export const VALUECHAIN_TESTNET = {
-  chainId: 138565,
-  chainIdHex: "0x21d45",
-  chainName: "ValueChain Testnet",
-  rpcUrl: "https://testnet.valuechain.xyz",
-  nativeCurrency: {
-    name: "SOSO",
-    symbol: "SOSO",
-    decimals: 18,
-  },
-}
+import { VALUECHAIN_TESTNET } from "./valuechain"
 
 const SODEX_BASE_URL = "https://testnet-gw.sodex.dev/api/v1/spot"
 
