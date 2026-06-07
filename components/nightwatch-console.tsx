@@ -424,6 +424,29 @@ export function NightWatchConsole({
 
   useEffect(() => {
     if (!isHydrated) return
+    const ethereum = getEthereum()
+    if (!ethereum) return
+
+    let cancelled = false
+    void ethereum
+      .request({ method: "eth_accounts" })
+      .then((accounts) => {
+        const wallet = Array.isArray(accounts) ? String(accounts[0] || "") : ""
+        if (!cancelled && isEvmAddress(wallet)) {
+          setAddress(wallet)
+        }
+      })
+      .catch(() => {
+        // Silent wallet restoration is best effort; the login button still handles explicit access.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isHydrated])
+
+  useEffect(() => {
+    if (!isHydrated) return
     writeStoredPreference<NightWatchStoredSettings>("settings", {
       mode,
       strategy,
@@ -452,6 +475,109 @@ export function NightWatchConsole({
   useEffect(() => {
     if (isHydrated) writeOrderHistory(orderHistory)
   }, [isHydrated, orderHistory])
+
+  const persistenceState = useMemo<NightWatchPersistenceState>(
+    () => ({
+      settings: {
+        mode,
+        strategy,
+        sleepMode,
+        dryRunMode,
+        portfolioValue,
+        accountId,
+        apiKeyName,
+        selectedSymbol,
+        alertPreferences,
+      },
+      sessions: sessions.slice(0, 12),
+      alertEvents: alertEvents.slice(0, 20),
+      dryRuns: dryRuns.slice(0, 20),
+      orderHistory: orderHistory.slice(0, 20),
+    }),
+    [
+      accountId,
+      alertEvents,
+      alertPreferences,
+      apiKeyName,
+      dryRunMode,
+      dryRuns,
+      mode,
+      orderHistory,
+      portfolioValue,
+      selectedSymbol,
+      sessions,
+      sleepMode,
+      strategy,
+    ],
+  )
+
+  useEffect(() => {
+    if (!isHydrated || !address) {
+      setHasLoadedRemoteProfile(false)
+      setPersistenceStatus(requireWallet ? "locked" : "local")
+      return
+    }
+
+    let cancelled = false
+    setHasLoadedRemoteProfile(false)
+    setPersistenceStatus("syncing")
+
+    void requestPersistenceProfile(address)
+      .then((profile) => {
+        if (cancelled) return
+
+        if (profile.state) {
+          const settings = normalizeStoredSettings(profile.state.settings)
+          setMode(settings.mode)
+          setStrategy(settings.strategy)
+          setSleepMode(settings.sleepMode)
+          setDryRunMode(settings.dryRunMode)
+          setPortfolioValue(settings.portfolioValue)
+          setAccountId(settings.accountId)
+          setApiKeyName(settings.apiKeyName)
+          setSelectedSymbol(settings.selectedSymbol)
+          setAlertPreferences(settings.alertPreferences)
+          setSessions(profile.state.sessions || [])
+          setAlertEvents(profile.state.alertEvents || [])
+          setDryRuns(profile.state.dryRuns || [])
+          setOrderHistory(profile.state.orderHistory || [])
+        }
+
+        lastRemoteWriteRef.current = ""
+        setHasLoadedRemoteProfile(true)
+        setPersistenceStatus(profile.sourceStatus === "mongodb" ? "mongodb" : "local")
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setHasLoadedRemoteProfile(true)
+        setPersistenceStatus("error")
+        setStatus(error instanceof Error ? error.message : "Server persistence is unavailable; using browser cache.")
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [address, isHydrated, requireWallet])
+
+  useEffect(() => {
+    if (!isHydrated || !address || !hasLoadedRemoteProfile) return
+
+    const serialized = JSON.stringify(persistenceState)
+    if (serialized === lastRemoteWriteRef.current) return
+
+    const timeout = window.setTimeout(() => {
+      void savePersistenceProfile(address, persistenceState)
+        .then((result) => {
+          lastRemoteWriteRef.current = serialized
+          setPersistenceStatus(result.sourceStatus === "mongodb" ? "mongodb" : "local")
+        })
+        .catch(() => {
+          setPersistenceStatus("error")
+        })
+    }, 900)
+
+    return () => window.clearTimeout(timeout)
+  }, [address, hasLoadedRemoteProfile, isHydrated, persistenceState])
 
   const selectedTicker = useMemo<SodexTicker | undefined>(
     () => market?.tickers.find((ticker) => ticker.symbol === selectedSymbol) || market?.tickers[0],
@@ -533,10 +659,15 @@ export function NightWatchConsole({
   )
 
   useEffect(() => {
+    if (requireWallet && !address) {
+      setIsLoading(false)
+      return
+    }
+
     void loadNightWatchData()
     const interval = window.setInterval(() => void loadNightWatchData({ withBrief: false, quiet: true }), 45_000)
     return () => window.clearInterval(interval)
-  }, [loadNightWatchData])
+  }, [address, loadNightWatchData, requireWallet])
 
   useEffect(() => {
     if (!isHydrated || !intel) return
@@ -917,6 +1048,64 @@ export function NightWatchConsole({
     setStatus("Morning report copied.")
   }
 
+  if (requireWallet && !address) {
+    return (
+      <section id="console" className="relative z-10 px-4 py-16 sm:py-24">
+        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+          <div>
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-md">
+              <Wallet className="h-4 w-4" />
+              Wallet login required
+            </div>
+            <h1 className="mb-5 text-balance text-4xl font-bold leading-tight text-white md:text-6xl">
+              Connect wallet to open NightWatch Dashboard
+            </h1>
+            <p className="max-w-2xl text-lg leading-relaxed text-white/70">
+              Your wallet address is the login key for server-side portfolio persistence. NightWatch stores risk sessions,
+              alerts, dry-runs, and audit history in your MongoDB profile without ever storing private keys.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={connectWallet}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 font-semibold text-black transition-all hover:bg-slate-100"
+              >
+                <Wallet className="h-5 w-5" />
+                Connect wallet
+              </button>
+              <button
+                onClick={switchToValueChain}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-6 font-semibold text-white transition-all hover:bg-white/15"
+              >
+                <KeyRound className="h-5 w-5" />
+                Add ValueChain
+              </button>
+            </div>
+          </div>
+
+          <Panel>
+            <PanelHeader eyebrow="Access model" title="What unlocks after login" icon={Shield} />
+            <div className="space-y-3">
+              {[
+                "MongoDB-backed Sleep Mode history",
+                "Wallet-scoped alert, dry-run, and order audit records",
+                "SoDEX account lookup and ValueChain signing controls",
+                "Risk, Execution, and Reports pages synced to the same profile",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/75">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-300" />
+                  {item}
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 rounded-xl border border-white/10 bg-black/25 p-4 text-sm text-white/55">
+              Status: {persistenceStatus === "locked" ? "waiting for wallet login" : "ready"}
+            </div>
+          </Panel>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section id="console" className="relative z-10 px-4 py-16 sm:py-24">
       <div className="mx-auto max-w-7xl">
@@ -942,6 +1131,7 @@ export function NightWatchConsole({
               { label: "SoDEX spot", live: market?.sourceStatus === "live" },
               { label: "SoDEX perps", live: perpsMarket?.sourceStatus === "live" },
               { label: "OpenAI", live: aiBrief?.sourceStatus === "openai" },
+              { label: "MongoDB profile", live: persistenceStatus === "mongodb" },
             ].map((source) => (
               <span key={source.label} className={`rounded-full border px-3 py-1 text-xs font-medium ${statusTone(source.live)}`}>
                 {source.label} {source.live ? "live" : "fallback"}
@@ -1452,7 +1642,7 @@ export function NightWatchConsole({
                       </div>
                     </div>
                   ))}
-                  {!sessions.length && <EmptyState label="Sleep sessions persist here once Sleep Mode captures market snapshots." />}
+                  {!sessions.length && <EmptyState label="Sleep sessions persist to your wallet-scoped MongoDB profile once Sleep Mode captures market snapshots." />}
                 </div>
               </Panel>
 
@@ -1486,7 +1676,7 @@ export function NightWatchConsole({
                       <p className="mt-2 text-sm text-white/55">{order.detail}</p>
                     </div>
                   ))}
-                  {!orderHistory.length && <EmptyState label="Dry-runs and signed orders create an auditable local history." />}
+                  {!orderHistory.length && <EmptyState label="Dry-runs and signed orders create a wallet-scoped MongoDB audit history." />}
                 </div>
               </Panel>
             </div>
