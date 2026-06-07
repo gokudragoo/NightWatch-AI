@@ -852,7 +852,7 @@
   animation-delay: 600ms;
 }
 
-/* Adding circle drawing animation for €200K+ stats */
+/* Circle drawing animation for highlighted metrics */
 @keyframes drawCircle {
   0% {
     stroke-dashoffset: 600;
@@ -862,7 +862,7 @@
   }
 }
 
-/* Adding fade-in animation for WhatsApp and Voice sections */
+/* Fade-in animation for product sections */
 @keyframes fade-in-section {
   0% {
     opacity: 0;

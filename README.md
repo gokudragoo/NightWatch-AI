@@ -152,7 +152,7 @@ The current build was also checked with Playwright against `next start` on deskt
 - EIP-712 signing path for a SoDEX spot `batchNewOrder` protection payload.
 - Server route to submit the signed SoDEX testnet protection order after wallet approval.
 - Protection simulator for overnight drawdown and estimated loss reduction.
-- Legacy template route redirects to NightWatch so the old dealership page is no longer exposed.
+- Legacy template route and unused demo components have been removed so the shipped app surface stays NightWatch-only.
 
 ## Wave 2: Shipped Now
 
