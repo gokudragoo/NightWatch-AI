@@ -43,7 +43,7 @@ NightWatch never silently trades. Every protection order requires a matching dry
 ## Tech Stack
 
 - Next.js 15.5.18 App Router, React 18, TypeScript
-- Tailwind CSS with the original v0 animation, layout, motion, image, and color system preserved
+- Tailwind CSS with the NightWatch animation, layout, motion, image, and color system preserved
 - Framer Motion, lucide-react, shadcn-style UI components
 - SoSoValue OpenAPI for market snapshots, hot news, ETF history, and sector spotlight
 - OpenAI Responses API for the dashboard risk brief
