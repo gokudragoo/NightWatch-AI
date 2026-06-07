@@ -67,6 +67,8 @@ ALERT_WEBHOOK_URL=your_generic_alert_webhook_url_here
 
 `SOSOVALUE_API_KEY`, `OPENAI_API_KEY`, Telegram, and email/webhook credentials are only read server-side. Mutating API routes enforce same-origin or `NIGHTWATCH_API_TOKEN` access, apply lightweight rate limits, and SoDEX submits require a signed dry-run receipt from `NIGHTWATCH_DRY_RUN_SECRET`. Provider fallbacks are explicitly labeled when live providers rate-limit or are not configured, and fallback market routes do not fabricate executable prices.
 
+SoSoValue reads are deduped and cached briefly on the server to reduce API-key burn during dashboard refreshes. If SoSoValue rate-limits after a recent live read, NightWatch can serve a short stale cache window; otherwise it switches to a clearly labeled deterministic fallback.
+
 ### Credential Safety
 
 - Do not commit `.env.local`; it is ignored by Git.
@@ -113,6 +115,16 @@ vercel --prod
 
 For production, configure the full environment set from `.env.example`. Vercel stores production and preview env values as sensitive by default, so keep secrets in Vercel env vars instead of source files.
 
+Before deployment, validate with:
+
+```bash
+corepack pnpm lint
+corepack pnpm build
+corepack pnpm audit --audit-level moderate
+```
+
+The current build was also checked with Playwright against `next start` on desktop and mobile viewports, including the SoDEX spot dry-run receipt flow.
+
 ## Wave 1: Shipped Now
 
 - NightWatch landing experience adapted from the v0 template while keeping the existing visual flow, animations, colors, rounded glass navigation, carousel motion, and section rhythm.
@@ -143,7 +155,7 @@ Wave 2 focuses on the exact judge gap from Wave 1: prove live ingestion, make ex
 - Strategy templates added: capital preservation, profit lock, volatility hedge, and narrative rotation.
 - Morning report panel added with copy-to-clipboard summary of active Sleep Mode session, latest score, alerts, order records, and AI brief.
 - Production hardening completed: TypeScript build errors are no longer ignored, Next.js is upgraded to the patched 15.5.18 line, React is aligned to the supported 18.x peer range, ESLint runs through the CLI, and external endpoints/timeouts are env-overridable.
-- Production audit fixes added: `pnpm audit` is clean, transitive PostCSS is forced to the patched line, `mathjs` was removed from the old blur component, signed-order payloads are validated server-side, dry-runs must carry a signed server receipt and match the submitted SoDEX order before execution, invalid wallet/account/API-key-name inputs are rejected, mutating routes are guarded and rate-limited, SoDEX quantities are rounded to symbol precision/step/min-notional filters, and fallback provider data no longer uses hardcoded market prices.
+- Production audit fixes added: `pnpm audit` is clean, transitive PostCSS is forced to the patched line, `mathjs` was removed from the old blur component, signed-order payloads are validated server-side, dry-runs must carry a signed server receipt and match the submitted SoDEX order before execution, invalid wallet/account/API-key-name inputs are rejected, mutating routes are guarded and rate-limited, SoDEX quantities are rounded to symbol precision/step/min-notional filters, SoSoValue reads are cached/deduped to reduce rate-limit pressure, Vercel Speed Insights is only injected in Vercel runtime, and fallback provider data no longer uses hardcoded market prices.
 - UI/UX cleanup completed with Risk, Execution, and Reports tabs so Wave 2 controls are not crowded into a single distorted page.
 
 Current limitation: server-side portfolio persistence still needs a database provider. Until those credentials are added, Wave 2 persistence is browser-local and clearly scoped to the connected browser.
