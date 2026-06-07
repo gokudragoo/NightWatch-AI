@@ -52,6 +52,8 @@ import type {
   DryRunOrder,
   NightWatchAiBrief,
   NightWatchIntel,
+  NightWatchPersistenceState,
+  NightWatchStoredSettings,
   ProtectionMode,
   ProtectionOrderRecord,
   ProtectionStrategy,
@@ -67,18 +69,6 @@ type EthereumProvider = {
 }
 
 type ConsoleView = "risk" | "execution" | "reports"
-
-type StoredSettings = {
-  mode: ProtectionMode
-  strategy: ProtectionStrategy
-  sleepMode: boolean
-  dryRunMode: boolean
-  portfolioValue: number
-  accountId: string
-  apiKeyName: string
-  selectedSymbol: string
-  alertPreferences: AlertPreferences
-}
 
 const TESTNET_ORDER_NOTIONAL_MULTIPLIER = 0.001
 const PROTECTION_MODES: ProtectionMode[] = ["safe", "balanced", "aggressive"]
@@ -202,7 +192,7 @@ function normalizeAlertPreferences(value: unknown): AlertPreferences {
   }
 }
 
-function normalizeStoredSettings(value: Partial<StoredSettings> | undefined): StoredSettings {
+function normalizeStoredSettings(value: Partial<NightWatchStoredSettings> | undefined): NightWatchStoredSettings {
   const portfolioValue = Number(value?.portfolioValue)
   const accountId = typeof value?.accountId === "string" && /^\d{0,18}$/.test(value.accountId) ? value.accountId : ""
   const apiKeyName = typeof value?.apiKeyName === "string" && isApiKeyName(value.apiKeyName) ? value.apiKeyName : ""
@@ -284,6 +274,25 @@ async function requestDryRunReceipt(dryRun: DryRunOrder) {
   return json.receipt
 }
 
+async function requestPersistenceProfile(wallet: string) {
+  return fetchJson<{
+    ok: boolean
+    sourceStatus: "mongodb" | "local-only"
+    state: NightWatchPersistenceState | null
+  }>(`/api/nightwatch/persistence?wallet=${encodeURIComponent(wallet)}`)
+}
+
+async function savePersistenceProfile(wallet: string, state: NightWatchPersistenceState) {
+  return fetchJson<{ ok: boolean; sourceStatus: "mongodb" | "local-only"; persisted: boolean }>(
+    "/api/nightwatch/persistence",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet, state }),
+    },
+  )
+}
+
 function statusTone(live: boolean) {
   return live ? "border-green-300/40 bg-green-300/10 text-green-100" : "border-white/15 bg-white/5 text-white/55"
 }
@@ -336,8 +345,14 @@ function EmptyState({ label }: { label: string }) {
   return <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">{label}</div>
 }
 
-export function NightWatchConsole() {
-  const [activeView, setActiveView] = useState<ConsoleView>("risk")
+export function NightWatchConsole({
+  initialView = "risk",
+  requireWallet = false,
+}: {
+  initialView?: ConsoleView
+  requireWallet?: boolean
+}) {
+  const [activeView, setActiveView] = useState<ConsoleView>(initialView)
   const [mode, setMode] = useState<ProtectionMode>("balanced")
   const [strategy, setStrategy] = useState<ProtectionStrategy>(DEFAULT_STRATEGY)
   const [sleepMode, setSleepMode] = useState(true)
@@ -360,17 +375,26 @@ export function NightWatchConsole() {
   const [currentDryRun, setCurrentDryRun] = useState<DryRunOrder | null>(null)
   const [lastAlertKey, setLastAlertKey] = useState("")
   const [isHydrated, setIsHydrated] = useState(false)
+  const [hasLoadedRemoteProfile, setHasLoadedRemoteProfile] = useState(false)
+  const [persistenceStatus, setPersistenceStatus] = useState<"locked" | "local" | "syncing" | "mongodb" | "error">(
+    requireWallet ? "locked" : "local",
+  )
   const [isLoading, setIsLoading] = useState(true)
   const [isBriefLoading, setIsBriefLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const briefingContextRef = useRef({ portfolioValue, sleepMode })
+  const lastRemoteWriteRef = useRef("")
+
+  useEffect(() => {
+    setActiveView(initialView)
+  }, [initialView])
 
   useEffect(() => {
     briefingContextRef.current = { portfolioValue, sleepMode }
   }, [portfolioValue, sleepMode])
 
   useEffect(() => {
-    const settings = normalizeStoredSettings(readStoredPreference<Partial<StoredSettings>>("settings", {
+    const settings = normalizeStoredSettings(readStoredPreference<Partial<NightWatchStoredSettings>>("settings", {
       mode: "balanced",
       strategy: DEFAULT_STRATEGY,
       sleepMode: true,
@@ -400,7 +424,7 @@ export function NightWatchConsole() {
 
   useEffect(() => {
     if (!isHydrated) return
-    writeStoredPreference<StoredSettings>("settings", {
+    writeStoredPreference<NightWatchStoredSettings>("settings", {
       mode,
       strategy,
       sleepMode,
