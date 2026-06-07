@@ -405,7 +405,7 @@ const features = [
 
 export function FeaturesSection() {
   const sectionRef = useRef<HTMLElement>(null)
-  const [isVisible, setIsVisible] = useState(false)
+  const [isVisible, setIsVisible] = useState(true)
   const [activeDemo, setActiveDemo] = useState<number | null>(null)
 
   useEffect(() => {
