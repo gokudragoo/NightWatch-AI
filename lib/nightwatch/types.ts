@@ -152,6 +152,18 @@ export interface AlertPreferences {
   threshold: number
 }
 
+export interface NightWatchStoredSettings {
+  mode: ProtectionMode
+  strategy: ProtectionStrategy
+  sleepMode: boolean
+  dryRunMode: boolean
+  portfolioValue: number
+  accountId: string
+  apiKeyName: string
+  selectedSymbol: string
+  alertPreferences: AlertPreferences
+}
+
 export interface AlertEvent {
   id: string
   createdAt: string
@@ -221,4 +233,13 @@ export interface SleepSession {
   portfolioValue: number
   alertThreshold: number
   snapshots: SleepSessionSnapshot[]
+}
+
+export interface NightWatchPersistenceState {
+  settings: NightWatchStoredSettings
+  sessions: SleepSession[]
+  alertEvents: AlertEvent[]
+  dryRuns: DryRunOrder[]
+  orderHistory: ProtectionOrderRecord[]
+  updatedAt?: string
 }
