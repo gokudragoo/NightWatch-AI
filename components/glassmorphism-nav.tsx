@@ -105,7 +105,7 @@ export function GlassmorphismNav() {
               >
                 <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center">
                   <Image
-                    src="/images/cliste-logo.png"
+                    src="/icon.svg"
                     alt="NightWatch AI"
                     width={40}
                     height={40}

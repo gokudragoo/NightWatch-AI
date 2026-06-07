@@ -42,14 +42,14 @@ export function TestimonialsSection() {
       role: "ValueChain testnet",
     },
     {
-      text: "Wave 2 adds persistent portfolios, notification delivery, strategy templates, order history, and deeper SoDEX perps protection.",
+      text: "Wave 2 adds persistent portfolios, notification delivery, strategy templates, order history, signed dry-run receipts, and deeper SoDEX perps protection.",
       name: "Wave 2",
-      role: "Next build",
+      role: "Shipped now",
     },
     {
-      text: "Wave 2 upgrades the AI explanation layer with richer source attribution across ETF flows, news, sectors, and whale-style signals.",
+      text: "Wave 2 upgrades the AI explanation layer with source snippets across ETF flows, news, sectors, SSI indexes, and SoDEX liquidity.",
       name: "AI Analyst",
-      role: "Planned",
+      role: "Shipped now",
     },
     {
       text: "Wave 3 evolves into autonomous, audited protection agents with configurable permissions, multi-wallet support, and morning reports.",
@@ -101,7 +101,7 @@ export function TestimonialsSection() {
             The waves we <span className="font-medium italic">ship</span>
           </h2>
           <p className="fade-in-element opacity-0 translate-y-8 transition-all duration-1000 ease-out text-xl text-white/70 max-w-2xl mx-auto leading-relaxed">
-            Wave 1 is working now; Wave 2 and Wave 3 turn the MVP into a full autonomous risk platform.
+            Wave 1 and Wave 2 are working now; Wave 3 is the path toward a full autonomous risk platform.
           </p>
         </div>
 

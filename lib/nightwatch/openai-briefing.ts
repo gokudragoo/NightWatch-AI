@@ -1,7 +1,5 @@
 import type { NightWatchAiBrief, NightWatchIntel, ProtectionMode, SodexMarket } from "./types"
-
-const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-const DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
+import { DEFAULT_OPENAI_MODEL, OPENAI_RESPONSES_URL, requestSignal } from "./config"
 
 type BriefInput = {
   intel: NightWatchIntel
@@ -59,11 +57,12 @@ function buildFallbackBrief(input: BriefInput, reason?: string): NightWatchAiBri
     model: reason || "deterministic-risk-brief",
     generatedAt: new Date().toISOString(),
     headline: `${input.intel.level} overnight risk with ${input.mode} protection`,
-    briefing: `${sleepCopy}. NightWatch sees a ${input.intel.score}/100 danger score, with ${topMover?.symbol || "major crypto"} driving the largest 24h move. The dashboard is using the deterministic risk engine until OPENAI_API_KEY is added.`,
+    briefing: `${sleepCopy}. NightWatch sees a ${input.intel.score}/100 danger score, with ${topMover?.symbol || "major crypto"} driving the largest 24h move. The deterministic brief is using the latest available SoSoValue, SSI, and SoDEX signals.`,
     tradeRationale: primaryAction
       ? `${primaryAction.title}: ${primaryAction.description}. The action is ${primaryAction.status} and still requires wallet approval before SoDEX execution.`
       : "No protection action is armed yet. Keep monitoring SoSoValue signals and SoDEX liquidity.",
     nextActions: input.intel.actions.slice(0, 3).map((action) => `${action.title}: ${action.status}`),
+    sourceSnippets: input.intel.sourceSnippets.slice(0, 4),
     confidence: input.intel.sourceStatus === "live" && input.market.sourceStatus === "live" ? "medium" : "low",
   }
 }
@@ -83,11 +82,12 @@ export async function getNightWatchAiBrief(input: BriefInput): Promise<NightWatc
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
+      signal: requestSignal(20_000),
       body: JSON.stringify({
         model,
         reasoning: { effort: "low" },
         instructions:
-          "You are NightWatch AI, an overnight crypto risk manager. Return compact JSON only. Never claim an order executed unless the payload says it executed. Keep every recommendation wallet-approved and testnet-aware.",
+          "You are NightWatch AI, an overnight crypto risk manager. Return compact JSON only. Never claim an order executed unless the payload says it executed. Keep every recommendation wallet-approved and testnet-aware. Cite only the provided sourceSnippets by title/source.",
         input: JSON.stringify({
           task: "Create a concise dashboard risk brief for a crypto trader going offline.",
           portfolioValue: input.portfolioValue,
@@ -99,15 +99,20 @@ export async function getNightWatchAiBrief(input: BriefInput): Promise<NightWatc
             sosovalue: input.intel.sourceStatus,
             sodex: input.market.sourceStatus,
           },
-          signals: input.intel.signals,
-          actions: input.intel.actions,
-          assets: input.intel.assets,
+          signals: input.intel.signals.slice(0, 8),
+          components: input.intel.components.slice(0, 8),
+          validationScenarios: input.intel.scenarios.slice(0, 5),
+          sourceSnippets: input.intel.sourceSnippets.slice(0, 8),
+          actions: input.intel.actions.slice(0, 5),
+          assets: input.intel.assets.slice(0, 8),
+          indexes: input.intel.indexes.slice(0, 4),
           sodexTickers: input.market.tickers.slice(0, 6),
           requiredJsonShape: {
             headline: "short risk headline",
             briefing: "two sentence trader-friendly brief",
             tradeRationale: "why this protection action makes sense",
             nextActions: ["three short dashboard actions"],
+            citedSourceTitles: ["source titles used"],
             confidence: "high | medium | low",
           },
         }),
@@ -134,6 +139,7 @@ export async function getNightWatchAiBrief(input: BriefInput): Promise<NightWatc
       nextActions: Array.isArray(parsed.nextActions)
         ? parsed.nextActions.slice(0, 3).map((action) => clampText(action, "Review protection plan", 80))
         : buildFallbackBrief(input).nextActions,
+      sourceSnippets: input.intel.sourceSnippets.slice(0, 4),
       confidence,
     }
   } catch (error) {

@@ -1,4 +1,16 @@
-import type { MarketAsset, NewsItem, NightWatchIntel, ProtectionAction, ProtectionMode, RiskLevel, RiskSignal } from "./types"
+import type {
+  MarketAsset,
+  NewsItem,
+  NightWatchIntel,
+  ProtectionAction,
+  ProtectionMode,
+  RiskComponent,
+  RiskLevel,
+  RiskScenario,
+  RiskSignal,
+  SosovalueIndex,
+  SourceSnippet,
+} from "./types"
 
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value))
 
@@ -67,8 +79,9 @@ export function computeDangerScore(input: {
   news: NewsItem[]
   etfNetFlow?: number
   sectorChange?: number
+  indexes?: SosovalueIndex[]
   mode?: ProtectionMode
-}): Pick<NightWatchIntel, "score" | "level" | "summary" | "signals" | "actions"> {
+}): Pick<NightWatchIntel, "score" | "level" | "summary" | "signals" | "components" | "scenarios" | "sourceSnippets" | "actions"> {
   const assets = input.assets
   const negativeMove = assets.reduce((sum, asset) => sum + Math.max(0, -asset.changePct24h), 0)
   const positiveMove = assets.reduce((sum, asset) => sum + Math.max(0, asset.changePct24h), 0)
@@ -79,11 +92,22 @@ export function computeDangerScore(input: {
 
   const newsText = input.news.map((item) => `${item.title} ${(item.tags || []).join(" ")}`).join(" ").toLowerCase()
   const keywordHits = dangerKeywords.filter((keyword) => newsText.includes(keyword)).length
-  const etfPressure = input.etfNetFlow && input.etfNetFlow < 0 ? clamp(Math.abs(input.etfNetFlow) / 50_000_000, 0, 18) : 0
-  const sectorPressure = input.sectorChange && input.sectorChange < 0 ? clamp(Math.abs(input.sectorChange) * 15, 0, 12) : 0
+  const etfPressure = typeof input.etfNetFlow === "number" && input.etfNetFlow < 0 ? clamp(Math.abs(input.etfNetFlow) / 50_000_000, 0, 18) : 0
+  const sectorPressure = typeof input.sectorChange === "number" && input.sectorChange < 0 ? clamp(Math.abs(input.sectorChange) * 15, 0, 12) : 0
+  const indexPressure = (input.indexes || []).reduce((sum, index) => sum + Math.max(0, -index.changePct24h), 0)
+  const cappedIndexPressure = clamp(indexPressure, 0, 12)
 
   const score = Math.round(
-    clamp(24 + negativeMove * 5.5 + volumePressure * 1.4 + keywordHits * 7 + etfPressure + sectorPressure - positiveMove * 1.8),
+    clamp(
+      24 +
+        negativeMove * 5.5 +
+        volumePressure * 1.4 +
+        keywordHits * 7 +
+        etfPressure +
+        sectorPressure +
+        cappedIndexPressure -
+        positiveMove * 1.8,
+    ),
   )
   const level = riskLevel(score)
 
@@ -96,18 +120,97 @@ export function computeDangerScore(input: {
     {
       label: "ETF flow pressure",
       value: typeof input.etfNetFlow === "number" ? formatUsd(input.etfNetFlow) : "Waiting for latest print",
-      impact: input.etfNetFlow && input.etfNetFlow < 0 ? "warning" : "neutral",
+      impact: typeof input.etfNetFlow === "number" && input.etfNetFlow < 0 ? "warning" : "neutral",
     },
     {
       label: "Narrative rotation",
       value: typeof input.sectorChange === "number" ? `${input.sectorChange.toFixed(2)}% sector change` : "Sector stream online",
-      impact: input.sectorChange && input.sectorChange < 0 ? "warning" : "positive",
+      impact: typeof input.sectorChange === "number" && input.sectorChange < 0 ? "warning" : "positive",
     },
     {
       label: "News shock detector",
       value: keywordHits > 0 ? `${keywordHits} danger keywords detected` : "No urgent shock terms",
       impact: keywordHits > 1 ? "danger" : keywordHits === 1 ? "warning" : "positive",
     },
+    {
+      label: "SSI index breadth",
+      value: input.indexes?.length ? `${input.indexes.length} index snapshots` : "Index stream pending",
+      impact: cappedIndexPressure > 6 ? "warning" : input.indexes?.length ? "positive" : "neutral",
+    },
+  ]
+
+  const components: RiskComponent[] = [
+    {
+      label: "Spot drawdown pressure",
+      contribution: Math.round(clamp(negativeMove * 5.5 - positiveMove * 1.8, -18, 36)),
+      weight: "24h price change across tracked majors",
+      evidence: `${assets.length} assets, ${negativeMove.toFixed(2)}% aggregate downside, ${positiveMove.toFixed(2)}% aggregate upside`,
+    },
+    {
+      label: "Liquidity stress",
+      contribution: Math.round(clamp(volumePressure * 1.4, 0, 14)),
+      weight: "Volume-to-market-cap pressure",
+      evidence: `Volume pressure contribution ${volumePressure.toFixed(2)}`,
+    },
+    {
+      label: "News shock terms",
+      contribution: keywordHits * 7,
+      weight: "Danger keyword detector over SoSoValue hot news",
+      evidence: keywordHits > 0 ? `${keywordHits} matched stress terms` : "No urgent stress terms matched",
+    },
+    {
+      label: "ETF flow pressure",
+      contribution: Math.round(etfPressure),
+      weight: "Negative aggregate ETF net flow",
+      evidence: typeof input.etfNetFlow === "number" ? `${formatUsd(input.etfNetFlow)} latest aggregate flow` : "ETF flow unavailable",
+    },
+    {
+      label: "Sector and SSI breadth",
+      contribution: Math.round(sectorPressure + cappedIndexPressure),
+      weight: "SoSoValue sector rotation plus SSI index 24h changes",
+      evidence:
+        input.indexes?.length || typeof input.sectorChange === "number"
+          ? `${typeof input.sectorChange === "number" ? `${input.sectorChange.toFixed(2)}% sector change` : "sector pending"}, ${input.indexes?.length || 0} SSI indexes`
+          : "Sector and SSI breadth unavailable",
+    },
+  ]
+
+  const scenarios: RiskScenario[] = [
+    {
+      name: "ETF outflow cascade",
+      trigger: "Aggregate ETF net flow turns sharply negative while majors fade.",
+      expectedImpact: "Safe and Balanced policies arm hedges before stop exits.",
+      scoreDelta: Math.round(clamp(etfPressure + negativeMove * 2.5, 4, 24)),
+    },
+    {
+      name: "Narrative rotation break",
+      trigger: "SSI or sector baskets roll over faster than BTC/ETH spot.",
+      expectedImpact: "Narrative-heavy exposure is reduced before majors confirm.",
+      scoreDelta: Math.round(clamp(cappedIndexPressure + sectorPressure, 3, 18)),
+    },
+    {
+      name: "News shock false positive",
+      trigger: "News terms look severe but price and flow confirmation stay calm.",
+      expectedImpact: "Orders remain in dry-run/ready state instead of auto-submitting.",
+      scoreDelta: keywordHits > 0 ? -Math.min(keywordHits * 4, 10) : 0,
+    },
+  ]
+
+  const sourceSnippets: SourceSnippet[] = [
+    ...input.news.slice(0, 3).map((item) => ({
+      title: item.title,
+      source: "SoSoValue" as const,
+      detail: item.tags?.length ? `Tags: ${item.tags.slice(0, 3).join(", ")}` : "Hot news cluster",
+      href: item.sourceLink || undefined,
+    })),
+    ...(input.indexes || []).slice(0, 2).map((index) => ({
+      title: index.ticker.toUpperCase(),
+      source: "SoSoValue Indexes" as const,
+      detail: `${index.changePct24h.toFixed(2)}% 24h, top weights ${index.constituents
+        .slice(0, 3)
+        .map((item) => `${item.symbol.toUpperCase()} ${formatWeight(item.weight)}`)
+        .join(", ")}`,
+    })),
   ]
 
   const summary =
@@ -124,15 +227,24 @@ export function computeDangerScore(input: {
     level,
     summary,
     signals,
+    components,
+    scenarios,
+    sourceSnippets,
     actions: buildProtectionActions(score, input.mode || "balanced"),
   }
 }
 
 export function formatUsd(value: number) {
+  if (!Number.isFinite(value)) return "$0"
   const sign = value < 0 ? "-" : ""
   const abs = Math.abs(value)
   if (abs >= 1_000_000_000) return `${sign}$${(abs / 1_000_000_000).toFixed(2)}B`
   if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`
   if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`
   return `${sign}$${abs.toFixed(0)}`
+}
+
+function formatWeight(value: number) {
+  const pct = Math.abs(value) <= 1 ? value * 100 : value
+  return `${pct.toFixed(1)}%`
 }

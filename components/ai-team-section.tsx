@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { MessageCircle, Clock, Zap } from "lucide-react"
+import Image from "next/image"
 
 const conversations = [
   {
@@ -121,13 +122,14 @@ export function AITeamSection() {
       },
     )
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current)
+    const section = sectionRef.current
+    if (section) {
+      observer.observe(section)
     }
 
     return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current)
+      if (section) {
+        observer.unobserve(section)
       }
     }
   }, [])
@@ -290,9 +292,11 @@ export function AITeamSection() {
 
                         <div className="bg-slate-900 px-6 py-4 text-white">
                           <div className="flex items-center gap-3">
-                            <img
+                            <Image
                               src="/images/michael-ai-agent.jpg"
                               alt="NightWatch AI Agent"
+                              width={32}
+                              height={32}
                               className="w-8 h-8 rounded-full object-cover mr-2 mt-1 flex-shrink-0"
                             />
                             <div className="flex-1">
@@ -318,9 +322,11 @@ export function AITeamSection() {
                               className={`flex ${message.sender === "customer" ? "justify-end" : "justify-start"}`}
                             >
                               {message.sender === "ai" && (
-                                <img
+                                <Image
                                   src="/images/michael-ai-agent.jpg"
                                   alt="NightWatch"
+                                  width={24}
+                                  height={24}
                                   className="w-6 h-6 rounded-full object-cover mr-2 mt-1 flex-shrink-0"
                                 />
                               )}
@@ -346,9 +352,11 @@ export function AITeamSection() {
                           {/* Typing indicator */}
                           {isTyping && (
                             <div className="flex justify-start items-start">
-                              <img
+                              <Image
                                 src="/images/michael-ai-agent.jpg"
                                 alt="NightWatch"
+                                width={24}
+                                height={24}
                                 className="w-6 h-6 rounded-full object-cover mr-2 mt-1 flex-shrink-0"
                               />
                               <div className="bg-white p-3 rounded-2xl rounded-bl-md shadow-sm border border-slate-200">

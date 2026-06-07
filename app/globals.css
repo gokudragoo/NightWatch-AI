@@ -122,7 +122,7 @@
   }
   html,
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground;

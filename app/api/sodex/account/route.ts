@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getSodexAccount } from "@/lib/nightwatch/sodex"
+import { getSodexAccount, isEvmAddress } from "@/lib/nightwatch/sodex"
 
 export const dynamic = "force-dynamic"
 
@@ -9,6 +9,10 @@ export async function GET(request: Request) {
 
   if (!address) {
     return NextResponse.json({ error: "address is required" }, { status: 400 })
+  }
+
+  if (!isEvmAddress(address)) {
+    return NextResponse.json({ error: "valid EVM address is required" }, { status: 400 })
   }
 
   try {

@@ -5,7 +5,7 @@ import { NightWatchConsole } from "@/components/nightwatch-console"
 
 export const metadata = {
   title: "NightWatch Dashboard - Live Crypto Risk Console",
-  description: "Run the NightWatch AI Wave 1 console with SoSoValue intelligence, OpenAI risk briefs, and SoDEX ValueChain execution.",
+  description: "Run the NightWatch AI Wave 2 console with SoSoValue intelligence, OpenAI risk briefs, and SoDEX ValueChain execution.",
 }
 
 export default function DashboardPage() {

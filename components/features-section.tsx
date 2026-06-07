@@ -217,7 +217,7 @@ const AnimatedEmailDemo = ({ isActive }: { isActive: boolean }) => {
   useEffect(() => {
     if (!isActive) return
 
-    emails.forEach((_, index) => {
+    Array.from({ length: 3 }).forEach((_, index) => {
       setTimeout(
         () => {
           setEmails((prev) => prev.map((email, i) => (i === index ? { ...email, status: "replied" } : email)))
@@ -265,9 +265,8 @@ const AnimatedLeadsDemo = ({ isActive }: { isActive: boolean }) => {
   useEffect(() => {
     if (!isActive) return
 
-    leads.forEach((_, index) => {
+    ;[85, 92, 78].forEach((targetScore, index) => {
       setTimeout(() => {
-        const targetScore = [85, 92, 78][index]
         const interval = setInterval(() => {
           setLeads((prev) =>
             prev.map((lead, i) => {
@@ -323,7 +322,7 @@ const AnimatedIntegrationsDemo = ({ isActive }: { isActive: boolean }) => {
   useEffect(() => {
     if (!isActive) return
 
-    connections.forEach((_, index) => {
+    Array.from({ length: 4 }).forEach((_, index) => {
       setTimeout(
         () => {
           setConnections((prev) => prev.map((conn, i) => (i === index ? { ...conn, connected: true } : conn)))
@@ -422,13 +421,14 @@ export function FeaturesSection() {
       },
     )
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current)
+    const section = sectionRef.current
+    if (section) {
+      observer.observe(section)
     }
 
     return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current)
+      if (section) {
+        observer.unobserve(section)
       }
     }
   }, [])
