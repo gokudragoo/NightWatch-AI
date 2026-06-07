@@ -6,7 +6,11 @@ NightWatch AI is an autonomous overnight risk manager for crypto traders. It wat
 
 The core promise is simple: activate Sleep Mode before going offline, let NightWatch monitor the market, then wake up to a clear report of what changed and what protection was prepared.
 
+<p align="center">
+  <img src="./public/image.png" alt="The Overnight Risk vs NightWatch AI — overnight dumps vs AI Guard protection on ValueChain" width="900" />
+</p>
 
+<p align="center"><em>Markets never sleep. NightWatch scores overnight danger from live intelligence and prepares wallet-approved SoDEX protection before you wake up.</em></p>
 
 
 ## Project Goal
