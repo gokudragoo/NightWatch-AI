@@ -1,7 +1,7 @@
 "use client"
 import type { ComponentProps, ReactNode } from "react"
 import { motion, useReducedMotion } from "framer-motion"
-import Image from "next/image"
+import { Shield } from "lucide-react"
 
 interface FooterLink {
   title: string
@@ -59,7 +59,15 @@ export function Footer() {
 
       <div className="grid w-full gap-8 xl:grid-cols-3 xl:gap-8">
         <AnimatedContainer className="space-y-4">
-          <Image src="/icon.svg" alt="NightWatch AI Logo" width={64} height={64} className="size-16" />
+          <div className="flex items-center gap-3">
+            <div className="flex size-12 items-center justify-center rounded-full bg-foreground text-background">
+              <Shield className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="font-semibold text-foreground">NightWatch AI</div>
+              <div className="text-muted-foreground text-sm">Autonomous crypto risk guardian</div>
+            </div>
+          </div>
           <div className="text-muted-foreground mt-8 text-sm md:mt-0 md:block hidden">
             <p>© {new Date().getFullYear()} NightWatch AI. All rights reserved.</p>
           </div>

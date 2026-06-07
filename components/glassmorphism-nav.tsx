@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Menu, X, ArrowRight } from "lucide-react"
-import Image from "next/image"
+import { Menu, X, ArrowRight, Shield } from "lucide-react"
 import Link from "next/link"
 
 const navigation = [
@@ -98,20 +97,15 @@ export function GlassmorphismNav() {
         <div className="w-[90vw] max-w-xs md:max-w-4xl mx-auto">
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-3 md:px-6 md:py-2">
             <div className="flex items-center justify-between">
-              {/* Logo */}
+              {/* Brand */}
               <Link
                 href="/"
-                className="flex items-center hover:scale-105 transition-transform duration-200 cursor-pointer"
+                className="flex items-center gap-2 hover:scale-105 transition-transform duration-200 cursor-pointer"
               >
-                <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center">
-                  <Image
-                    src="/icon.svg"
-                    alt="NightWatch AI"
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-contain"
-                  />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-black flex items-center justify-center">
+                  <Shield className="h-5 w-5 md:h-6 md:w-6" />
                 </div>
+                <span className="hidden sm:inline text-sm font-semibold tracking-wide text-white">NightWatch</span>
               </Link>
 
               {/* Desktop Navigation */}
