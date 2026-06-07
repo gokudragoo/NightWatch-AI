@@ -68,7 +68,7 @@ NIGHTWATCH_REQUEST_TIMEOUT_MS=12000
 NIGHTWATCH_ALLOWED_ORIGINS=http://localhost:3000,https://your-deployment.example
 NIGHTWATCH_API_TOKEN=optional_server_to_server_demo_token
 NIGHTWATCH_DRY_RUN_SECRET=replace_with_a_random_32_byte_secret
-MONGODB_URI=mongodb+srv://user:password@cluster.example.mongodb.net/?retryWrites=true&w=majority
+MONGODB_URI=your_mongodb_uri_here
 NIGHTWATCH_PERSISTENCE_DB=nightwatchai
 NIGHTWATCH_PERSISTENCE_COLLECTION=wallet_profiles
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
@@ -141,7 +141,7 @@ The current build was also checked with Playwright against `next start` on deskt
 
 ## Wave 1: Shipped Now
 
-- NightWatch landing experience adapted from the v0 template while keeping the existing visual flow, animations, colors, rounded glass navigation, carousel motion, and section rhythm.
+- NightWatch landing experience now uses the NightWatch visual flow, animations, colors, rounded glass navigation, carousel motion, and section rhythm without the old template branding.
 - Dedicated `/dashboard` route for the live Wave 1 console.
 - Live NightWatch Console with portfolio value controls and Safe, Balanced, and Aggressive protection modes.
 - SoSoValue-backed intelligence route for BTC, ETH, SOL, LINK, hot news, ETF flow pressure, and sector rotation.
