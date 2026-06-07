@@ -208,7 +208,7 @@ export function ProblemSolutionSection() {
             size="lg"
             className="bg-white text-black rounded-full px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-medium transition-all duration-300 hover:bg-gray-50 hover:scale-105 hover:shadow-lg group cursor-pointer"
           >
-            <a href="#console">
+            <a href="/dashboard">
               Open Live Console
               <ArrowRight />
             </a>

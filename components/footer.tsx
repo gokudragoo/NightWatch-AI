@@ -17,10 +17,10 @@ const footerLinks: FooterSection[] = [
   {
     label: "Product",
     links: [
-      { title: "Risk Engine", href: "#features" },
-      { title: "Live Console", href: "#console" },
+      { title: "Risk Engine", href: "/risk" },
+      { title: "Execution", href: "/execution" },
       { title: "Dashboard", href: "/dashboard" },
-      { title: "Sleep Mode", href: "#ai-team" },
+      { title: "Reports", href: "/reports" },
     ],
   },
   {
@@ -35,8 +35,8 @@ const footerLinks: FooterSection[] = [
   {
     label: "Resources",
     links: [
-      { title: "Wave Roadmap", href: "#testimonials" },
-      { title: "Protection Flow", href: "#console" },
+      { title: "Wave Roadmap", href: "/roadmap" },
+      { title: "Protection Flow", href: "/execution" },
       { title: "README", href: "https://github.com/gokudragoo/NightWatch-AI" },
       { title: "Demo", href: "/dashboard" },
     ],

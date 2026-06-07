@@ -26,15 +26,17 @@ Wave 2 is designed to be demoable end-to-end: live data comes in, the dashboard 
 
 ## Live User Flow
 
-1. User opens the dashboard at `/dashboard` or scrolls to the console on the homepage.
-2. NightWatch loads SoSoValue intelligence for tracked assets and SoDEX testnet market routes.
-3. The risk engine computes a Market Danger Score and explains which signals are driving it.
-4. OpenAI creates a trader-friendly risk brief when `OPENAI_API_KEY` is configured. If no key is present, the app uses a labeled deterministic brief.
-5. User picks a protection mode: Safe, Balanced, or Aggressive.
-6. User connects an EVM wallet and switches/adds ValueChain testnet.
-7. NightWatch creates a dry-run preview for the selected SoDEX route.
-8. User signs the EIP-712 `ExchangeAction` only after the dry-run matches the selected market.
-9. The server validates and submits the signed testnet order to SoDEX.
+1. User opens `/dashboard`, `/risk`, `/execution`, or `/reports`.
+2. User connects an EVM wallet as the dashboard login key.
+3. NightWatch loads the wallet-scoped MongoDB profile, then syncs browser-local cache as a fallback.
+4. NightWatch loads SoSoValue intelligence for tracked assets and SoDEX testnet market routes.
+5. The risk engine computes a Market Danger Score and explains which signals are driving it.
+6. OpenAI creates a trader-friendly risk brief when `OPENAI_API_KEY` is configured. If no key is present, the app uses a labeled deterministic brief.
+7. User picks a protection mode: Safe, Balanced, or Aggressive.
+8. User switches/adds ValueChain testnet when signing is needed.
+9. NightWatch creates a dry-run preview for the selected SoDEX route.
+10. User signs the EIP-712 `ExchangeAction` only after the dry-run matches the selected market.
+11. The server validates and submits the signed testnet order to SoDEX.
 
 NightWatch never silently trades. Every protection order requires a matching dry-run and wallet approval.
 
@@ -66,13 +68,16 @@ NIGHTWATCH_REQUEST_TIMEOUT_MS=12000
 NIGHTWATCH_ALLOWED_ORIGINS=http://localhost:3000,https://your-deployment.example
 NIGHTWATCH_API_TOKEN=optional_server_to_server_demo_token
 NIGHTWATCH_DRY_RUN_SECRET=replace_with_a_random_32_byte_secret
+MONGODB_URI=mongodb+srv://user:password@cluster.example.mongodb.net/?retryWrites=true&w=majority
+NIGHTWATCH_PERSISTENCE_DB=nightwatchai
+NIGHTWATCH_PERSISTENCE_COLLECTION=wallet_profiles
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 TELEGRAM_CHAT_ID=your_telegram_chat_id_here
 EMAIL_ALERT_WEBHOOK_URL=your_email_webhook_url_here
 ALERT_WEBHOOK_URL=your_generic_alert_webhook_url_here
 ```
 
-`SOSOVALUE_API_KEY`, `OPENAI_API_KEY`, Telegram, and email/webhook credentials are only read server-side. Mutating API routes enforce same-origin or `NIGHTWATCH_API_TOKEN` access, apply lightweight rate limits, and SoDEX submits require a signed dry-run receipt from `NIGHTWATCH_DRY_RUN_SECRET`. Provider fallbacks are explicitly labeled when live providers rate-limit or are not configured, and fallback market routes do not fabricate executable prices.
+`SOSOVALUE_API_KEY`, `OPENAI_API_KEY`, `MONGODB_URI`, Telegram, and email/webhook credentials are only read server-side. Mutating API routes enforce same-origin or `NIGHTWATCH_API_TOKEN` access, apply lightweight rate limits, and SoDEX submits require a signed dry-run receipt from `NIGHTWATCH_DRY_RUN_SECRET`. Provider fallbacks are explicitly labeled when live providers rate-limit or are not configured, and fallback market routes do not fabricate executable prices.
 
 SoSoValue reads are deduped and cached briefly on the server to reduce API-key burn during dashboard refreshes. If SoSoValue rate-limits after a recent live read, NightWatch can serve a short stale cache window; otherwise it switches to a clearly labeled deterministic fallback.
 
@@ -82,6 +87,7 @@ SoSoValue reads are deduped and cached briefly on the server to reduce API-key b
 - Rotate any OpenAI or SoSoValue key that has been pasted into a chat, issue tracker, screenshot, or public log.
 - `NIGHTWATCH_DRY_RUN_SECRET` should be a random 32-byte-or-longer secret in production.
 - `NIGHTWATCH_API_TOKEN` is optional for same-origin browser use, but useful for server-to-server demo scripts.
+- `MONGODB_URI` powers wallet-scoped server persistence. Rotate the database password if the URI has ever been pasted into chat or logs.
 
 ### SoDEX Execution Requirements
 
@@ -117,6 +123,7 @@ corepack pnpm build
 vercel env add SOSOVALUE_API_KEY production
 vercel env add OPENAI_API_KEY production
 vercel env add NIGHTWATCH_DRY_RUN_SECRET production
+vercel env add MONGODB_URI production
 vercel --prod
 ```
 
@@ -152,6 +159,8 @@ The current build was also checked with Playwright against `next start` on deskt
 Wave 2 focuses on the exact judge gap from Wave 1: prove live ingestion, make execution flow observable, and show why the Market Danger Score is trustworthy.
 
 - Persistent browser-local portfolios, risk profile, alert preferences, Sleep Mode sessions, risk snapshots, dry-runs, alert history, and signed-order audit history. No wallet private keys or API secrets are stored in the browser.
+- Wallet login added for dashboard access. The connected EVM address is the profile key for MongoDB-backed server persistence.
+- MongoDB-backed persistence added for wallet-scoped settings, Sleep Mode sessions, alert history, dry-runs, and signed-order audit history, with browser-local storage retained as cache/fallback.
 - SoSoValue integration upgraded from fixed currency IDs to `/currencies` discovery, documented ETF flow parameters, live hot news, sector spotlight, and transparent fallback reasons.
 - SoSoValue Indexes support added through `/indices`, `/indices/{index_ticker}/market-snapshot`, and `/indices/{index_ticker}/constituents`, with SSI breadth included in the Market Danger Score and source snippets.
 - Market Danger Score now returns score components, evidence, and stress scenarios for ETF outflow cascades, narrative rotation breaks, and false-positive news shocks.
@@ -162,10 +171,9 @@ Wave 2 focuses on the exact judge gap from Wave 1: prove live ingestion, make ex
 - Strategy templates added: capital preservation, profit lock, volatility hedge, and narrative rotation.
 - Morning report panel added with copy-to-clipboard summary of active Sleep Mode session, latest score, alerts, order records, and AI brief.
 - Production hardening completed: TypeScript build errors are no longer ignored, Next.js is upgraded to the patched 15.5.18 line, React is aligned to the supported 18.x peer range, ESLint runs through the CLI, and external endpoints/timeouts are env-overridable.
-- Production audit fixes added: `pnpm audit` is clean, transitive PostCSS is forced to the patched line, `mathjs` was removed from the old blur component, signed-order payloads are validated server-side, dry-runs must carry a signed server receipt and match the submitted SoDEX order before execution, invalid wallet/account/API-key-name inputs are rejected, mutating routes are guarded and rate-limited, SoDEX quantities are rounded to symbol precision/step/min-notional filters, SoSoValue reads are cached/deduped to reduce rate-limit pressure, Vercel Speed Insights is only injected in Vercel runtime, and fallback provider data no longer uses hardcoded market prices.
+- Production audit fixes added: `pnpm audit` is clean, transitive PostCSS is forced to the patched line, `mathjs` was removed from the old blur component, signed-order payloads are validated server-side, dry-runs must carry a signed server receipt and match the submitted SoDEX order before execution, invalid wallet/account/API-key-name inputs are rejected, mutating routes are guarded and rate-limited, persistence payloads are validated and bounded before MongoDB writes, SoDEX quantities are rounded to symbol precision/step/min-notional filters, SoSoValue reads are cached/deduped to reduce rate-limit pressure, Vercel Speed Insights is only injected in Vercel runtime, and fallback provider data no longer uses hardcoded market prices.
 - UI/UX cleanup completed with Risk, Execution, and Reports tabs so Wave 2 controls are not crowded into a single distorted page.
-
-Current limitation: server-side portfolio persistence still needs a database provider. Until those credentials are added, Wave 2 persistence is browser-local and clearly scoped to the connected browser.
+- App structure split into focused pages: `/dashboard`, `/risk`, `/execution`, `/reports`, and `/roadmap`.
 
 ## Wave 3 Goals
 
@@ -179,8 +187,8 @@ Current limitation: server-side portfolio persistence still needs a database pro
 
 ## Demo Script
 
-1. Open `/dashboard`.
-2. Confirm the source badges show SoSoValue, SSI indexes, SoDEX spot, SoDEX perps, and OpenAI status. Rate-limit or credential fallbacks are labeled in the console status line.
+1. Open `/dashboard` and connect an EVM wallet to unlock the dashboard.
+2. Confirm the source badges show SoSoValue, SSI indexes, SoDEX spot, SoDEX perps, OpenAI, and MongoDB profile status. Rate-limit or credential fallbacks are labeled in the console status line.
 3. In the Risk tab, read the Market Danger Score, score components, stress scenarios, source snippets, and OpenAI risk brief.
 4. In the Execution tab, switch Safe/Balanced/Aggressive modes and strategy templates, adjust portfolio value and alert threshold, and enable browser notifications.
 5. Create a SoDEX spot dry-run preview before signing. The sign button stays blocked until a dry-run exists.
