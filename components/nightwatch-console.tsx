@@ -1448,14 +1448,16 @@ export function NightWatchConsole({
                   </button>
                   <button
                     onClick={() => void createDryRun("SoDEX spot")}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white transition-all hover:bg-white/15"
+                    disabled={market?.sourceStatus !== "live"}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <Target className="h-4 w-4" />
                     Preview spot order
                   </button>
                   <button
                     onClick={() => void createDryRun("SoDEX perps")}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white transition-all hover:bg-white/15"
+                    disabled={perpsMarket?.sourceStatus !== "live"}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-medium text-white transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <LineChart className="h-4 w-4" />
                     Preview perps hedge
