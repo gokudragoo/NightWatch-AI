@@ -1,12 +1,25 @@
 import { computeDangerScore } from "./risk-engine"
-import type { MarketAsset, NewsItem, NightWatchIntel, ProtectionMode, SosovalueIndex } from "./types"
+import type { MacroEvent, MarketAsset, NewsItem, NightWatchIntel, ProtectionMode, SosovalueIndex } from "./types"
 import { requestSignal, SOSOVALUE_BASE_URL } from "./config"
 
-const TRACKED_SYMBOLS = ["BTC", "ETH", "SOL", "LINK"]
+const DEFAULT_TRACKED_SYMBOLS = ["BTC", "ETH", "SOL", "LINK"]
 const SOSO_FRESH_TTL_MS = 45_000
 const SOSO_STALE_TTL_MS = 5 * 60_000
 const INTEL_LIVE_TTL_MS = 45_000
 const INTEL_FALLBACK_TTL_MS = 10_000
+const MACRO_KEYWORDS = [
+  "cpi",
+  "inflation",
+  "fomc",
+  "fed",
+  "rate",
+  "nonfarm",
+  "payroll",
+  "pce",
+  "jobs",
+  "unemployment",
+]
+const DEFAULT_ETF_COUNTRY_CODES = ["US", "HK"]
 
 type CacheEntry<T> = {
   expiresAt: number
@@ -17,6 +30,37 @@ type CacheEntry<T> = {
 
 const sosoCache = new Map<string, CacheEntry<unknown>>()
 const intelCache = new Map<ProtectionMode, CacheEntry<NightWatchIntel>>()
+
+function readListEnv(name: string, fallback: string[]) {
+  const values = (process.env[name] || "")
+    .split(",")
+    .map((value) => value.trim().toUpperCase())
+    .filter((value) => /^[A-Z0-9]{2,16}$/.test(value))
+
+  return values.length ? Array.from(new Set(values)).slice(0, 8) : fallback
+}
+
+function readIntegerEnv(name: string, fallback: number, min: number, max: number) {
+  const parsed = Number(process.env[name])
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.max(min, Math.min(max, Math.round(parsed)))
+}
+
+function trackedSymbols() {
+  return readListEnv("NIGHTWATCH_TRACKED_SYMBOLS", DEFAULT_TRACKED_SYMBOLS)
+}
+
+function etfCountryCodes() {
+  return readListEnv("NIGHTWATCH_ETF_COUNTRY_CODES", DEFAULT_ETF_COUNTRY_CODES).slice(0, 4)
+}
+
+function ssiIndexLimit() {
+  return readIntegerEnv("NIGHTWATCH_SSI_INDEX_LIMIT", 2, 1, 4)
+}
+
+function macroLookaheadDays() {
+  return readIntegerEnv("NIGHTWATCH_MACRO_LOOKAHEAD_DAYS", 7, 1, 30)
+}
 
 function cacheTtlFor(path: string) {
   if (path.includes("market-snapshot") || path.includes("/news")) return 30_000
@@ -96,7 +140,7 @@ function stripHtml(value: string) {
 }
 
 function trackedFallbackAssets(): MarketAsset[] {
-  return TRACKED_SYMBOLS.map((symbol) => ({
+  return trackedSymbols().map((symbol) => ({
     symbol,
     name: symbol,
     price: 0,
@@ -130,10 +174,63 @@ function normalizeIndexTickers(payload: unknown) {
     .filter(Boolean)
 }
 
+function utcDay(value: Date) {
+  return Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate())
+}
+
+function parseDateOnly(value: unknown) {
+  if (typeof value !== "string") return null
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return null
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = Date.UTC(year, month - 1, day)
+  return Number.isFinite(date) ? date : null
+}
+
+function macroImpact(daysUntil: number, events: string[]): MacroEvent["impact"] {
+  const eventText = events.join(" ").toLowerCase()
+  const marketMoving = MACRO_KEYWORDS.some((keyword) => eventText.includes(keyword))
+
+  if (daysUntil <= 1 && marketMoving) return "danger"
+  if (daysUntil <= 3 || marketMoving) return "warning"
+  return "neutral"
+}
+
+function normalizeMacroEvents(payload: unknown): MacroEvent[] {
+  const today = utcDay(new Date())
+  const maxDay = today + macroLookaheadDays() * 86_400_000
+  const list = Array.isArray(payload) ? payload : []
+
+  return list
+    .map((item) => {
+      const record = item as Record<string, unknown>
+      const dateValue = parseDateOnly(record.date)
+      const events = Array.isArray(record.events)
+        ? record.events.map((event) => String(event).trim()).filter(Boolean).slice(0, 8)
+        : []
+
+      if (dateValue === null || !events.length || dateValue < today || dateValue > maxDay) return null
+
+      const daysUntil = Math.max(0, Math.round((dateValue - today) / 86_400_000))
+      return {
+        date: String(record.date),
+        events,
+        daysUntil,
+        impact: macroImpact(daysUntil, events),
+      } satisfies MacroEvent
+    })
+    .filter((event): event is MacroEvent => Boolean(event))
+    .sort((a, b) => a.daysUntil - b.daysUntil || a.date.localeCompare(b.date))
+    .slice(0, 6)
+}
+
 async function getTrackedAssets(): Promise<MarketAsset[]> {
   const currencies = await fetchSoso<Array<Record<string, unknown>>>("/currencies")
   const currencyMap = new Map(currencies.map((currency) => [String(currency.symbol || "").toUpperCase(), currency]))
-  const tracked = TRACKED_SYMBOLS.map((symbol) => currencyMap.get(symbol)).filter(Boolean)
+  const tracked = trackedSymbols().map((symbol) => currencyMap.get(symbol)).filter(Boolean)
 
   if (!tracked.length) {
     throw new Error("SoSoValue currency discovery returned no tracked assets")
@@ -158,7 +255,7 @@ async function getTrackedAssets(): Promise<MarketAsset[]> {
 
 async function getSosovalueIndexes(): Promise<SosovalueIndex[]> {
   const indexTickers = await fetchSoso<unknown>("/indices").catch(() => [])
-  const selected = normalizeIndexTickers(indexTickers).slice(0, 4)
+  const selected = normalizeIndexTickers(indexTickers).slice(0, ssiIndexLimit())
 
   return Promise.all(
     selected.map(async (ticker) => {
@@ -183,18 +280,35 @@ async function getSosovalueIndexes(): Promise<SosovalueIndex[]> {
   )
 }
 
+async function getEtfSummaryHistory(): Promise<Array<Record<string, unknown>>> {
+  const histories = await Promise.all(
+    etfCountryCodes().map((countryCode) =>
+      fetchSoso<Array<Record<string, unknown>>>(
+        `/etfs/summary-history?symbol=BTC&country_code=${encodeURIComponent(countryCode)}&limit=7`,
+      )
+        .then((items) => items.map((item) => ({ ...item, country_code: countryCode })))
+        .catch(() => []),
+    ),
+  )
+
+  return histories.flat()
+}
+
 async function loadNightWatchIntel(mode: ProtectionMode): Promise<NightWatchIntel> {
   try {
-    const [snapshots, hotNews, etfHistory, sectorSpotlight, indexes] = await Promise.all([
+    const [snapshots, hotNews, etfHistory, sectorSpotlight, indexes, macroResult] = await Promise.all([
       getTrackedAssets(),
       fetchSoso<{ list?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>(
         "/news/hot?page=1&page_size=8&language=en",
       ),
-      fetchSoso<Array<Record<string, unknown>>>("/etfs/summary-history?symbol=BTC&country_code=US&limit=7").catch(() => []),
+      getEtfSummaryHistory(),
       fetchSoso<{ sector?: Array<Record<string, unknown>>; spotlight?: Array<Record<string, unknown>> }>(
         "/currencies/sector-spotlight",
       ).catch(() => ({ sector: [], spotlight: [] })),
       getSosovalueIndexes().catch(() => []),
+      fetchSoso<unknown>("/macro/events")
+        .then((payload) => ({ sourceStatus: "live" as const, events: normalizeMacroEvents(payload) }))
+        .catch(() => ({ sourceStatus: "fallback" as const, events: [] })),
     ])
 
     const newsList = Array.isArray(hotNews) ? hotNews : hotNews.list || []
@@ -205,18 +319,33 @@ async function loadNightWatchIntel(mode: ProtectionMode): Promise<NightWatchInte
       tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
     }))
 
-    const latestEtf = Array.isArray(etfHistory) ? etfHistory[0] : undefined
-    const etfNetFlow = asNumber(latestEtf?.total_net_inflow ?? latestEtf?.net_inflow)
+    const latestEtfByCountry = etfCountryCodes()
+      .map((countryCode) => etfHistory.find((item) => item.country_code === countryCode))
+      .filter(Boolean)
+    const etfNetFlow = latestEtfByCountry.reduce(
+      (sum, latestEtf) => sum + asNumber(latestEtf?.total_net_inflow ?? latestEtf?.net_inflow),
+      0,
+    )
     const sectorChange = normalizePct(sectorSpotlight.sector?.[0]?.["24h_change_pct"])
-    const analysis = computeDangerScore({ assets: snapshots, news, etfNetFlow, sectorChange, indexes, mode })
+    const analysis = computeDangerScore({
+      assets: snapshots,
+      news,
+      etfNetFlow,
+      sectorChange,
+      indexes,
+      macroEvents: macroResult.events,
+      mode,
+    })
 
     return {
       ...analysis,
       sourceStatus: "live",
+      macroSourceStatus: macroResult.sourceStatus,
       generatedAt: new Date().toISOString(),
       assets: snapshots,
       news,
       indexes,
+      macroEvents: macroResult.events,
     }
   } catch (error) {
     const fallbackAssets = trackedFallbackAssets()
@@ -231,16 +360,19 @@ async function loadNightWatchIntel(mode: ProtectionMode): Promise<NightWatchInte
       etfNetFlow: 0,
       sectorChange: 0,
       indexes: [],
+      macroEvents: [],
       mode,
     })
 
     return {
       ...analysis,
       sourceStatus: "fallback",
+      macroSourceStatus: "fallback",
       generatedAt: new Date().toISOString(),
       assets: fallbackAssets,
       news: fallbackNews,
       indexes: [],
+      macroEvents: [],
     }
   }
 }

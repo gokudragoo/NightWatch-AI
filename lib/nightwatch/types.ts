@@ -43,7 +43,7 @@ export interface RiskScenario {
 
 export interface SourceSnippet {
   title: string
-  source: "SoSoValue" | "SoSoValue Indexes" | "SoDEX" | "NightWatch"
+  source: "SoSoValue" | "SoSoValue Indexes" | "SoSoValue Macro" | "SoDEX" | "NightWatch"
   detail: string
   href?: string
 }
@@ -67,10 +67,18 @@ export interface SosovalueIndex {
   }>
 }
 
+export interface MacroEvent {
+  date: string
+  events: string[]
+  daysUntil: number
+  impact: "neutral" | "warning" | "danger"
+}
+
 export interface NightWatchIntel {
   score: number
   level: RiskLevel
   sourceStatus: "live" | "fallback"
+  macroSourceStatus: "live" | "fallback"
   generatedAt: string
   summary: string
   assets: MarketAsset[]
@@ -81,6 +89,7 @@ export interface NightWatchIntel {
   actions: ProtectionAction[]
   news: NewsItem[]
   indexes: SosovalueIndex[]
+  macroEvents: MacroEvent[]
 }
 
 export interface NightWatchAiBrief {

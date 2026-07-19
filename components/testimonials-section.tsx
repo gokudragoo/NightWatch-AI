@@ -52,14 +52,14 @@ export function TestimonialsSection() {
       role: "Shipped now",
     },
     {
-      text: "Wave 3 evolves into autonomous, audited protection agents with configurable permissions, multi-wallet support, and morning reports.",
+      text: "Wave 3 adds SoSoValue Macro catalysts, configurable tracked assets, SSI request limits, and a cleaner morning report.",
       name: "Wave 3",
-      role: "Future expansion",
+      role: "Final pass shipped",
     },
     {
-      text: "Wave 3 adds copy-protection strategies, backtests, voice and Telegram assistants, and permissioned production execution policies.",
-      name: "Autonomous Layer",
-      role: "Future expansion",
+      text: "Wave 3 blocks wallet signing until the SoDEX EIP-712 verifying contract is configured, while dry-runs remain available.",
+      name: "Execution Guard",
+      role: "Production hardening",
     },
     {
       text: "The judging story is simple: market intelligence from SoSoValue becomes user-approved protection on SoDEX.",
@@ -101,7 +101,7 @@ export function TestimonialsSection() {
             The waves we <span className="font-medium italic">ship</span>
           </h2>
           <p className="fade-in-element opacity-0 translate-y-8 transition-all duration-1000 ease-out text-xl text-white/70 max-w-2xl mx-auto leading-relaxed">
-            Wave 1 and Wave 2 are working now; Wave 3 is the path toward a full autonomous risk platform.
+            Wave 1 proved the live flow, Wave 2 added persistence and audit history, and Wave 3 is the final production pass.
           </p>
         </div>
 
@@ -114,14 +114,14 @@ export function TestimonialsSection() {
               WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)",
             }}
           >
-            <TestimonialsColumn testimonials={testimonials.slice(0, 3)} duration={15} className="flex-1" />
+            <TestimonialsColumn testimonials={testimonials.slice(0, 4)} duration={15} className="flex-1" />
             <TestimonialsColumn
-              testimonials={testimonials.slice(2, 5)}
+              testimonials={testimonials.slice(3, 7)}
               duration={12}
               className="flex-1 hidden md:block"
             />
             <TestimonialsColumn
-              testimonials={testimonials.slice(1, 4)}
+              testimonials={testimonials.slice(4, 8)}
               duration={18}
               className="flex-1 hidden lg:block"
             />

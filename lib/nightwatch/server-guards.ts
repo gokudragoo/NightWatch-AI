@@ -111,3 +111,7 @@ export function guardMutatingRequest(request: Request, options: RateLimitOptions
 
   return checkRateLimit(request, options)
 }
+
+export function guardRateLimitedRequest(request: Request, options: RateLimitOptions) {
+  return checkRateLimit(request, options)
+}

@@ -1,4 +1,5 @@
 import type {
+  MacroEvent,
   MarketAsset,
   NewsItem,
   NightWatchIntel,
@@ -80,6 +81,7 @@ export function computeDangerScore(input: {
   etfNetFlow?: number
   sectorChange?: number
   indexes?: SosovalueIndex[]
+  macroEvents?: MacroEvent[]
   mode?: ProtectionMode
 }): Pick<NightWatchIntel, "score" | "level" | "summary" | "signals" | "components" | "scenarios" | "sourceSnippets" | "actions"> {
   const assets = input.assets
@@ -96,6 +98,15 @@ export function computeDangerScore(input: {
   const sectorPressure = typeof input.sectorChange === "number" && input.sectorChange < 0 ? clamp(Math.abs(input.sectorChange) * 15, 0, 12) : 0
   const indexPressure = (input.indexes || []).reduce((sum, index) => sum + Math.max(0, -index.changePct24h), 0)
   const cappedIndexPressure = clamp(indexPressure, 0, 12)
+  const macroPressure = clamp(
+    (input.macroEvents || []).reduce((sum, event) => {
+      if (event.impact === "danger") return sum + 6
+      if (event.impact === "warning") return sum + 3
+      return sum + (event.daysUntil <= 1 ? 1 : 0)
+    }, 0),
+    0,
+    10,
+  )
 
   const score = Math.round(
     clamp(
@@ -105,7 +116,8 @@ export function computeDangerScore(input: {
         keywordHits * 7 +
         etfPressure +
         sectorPressure +
-        cappedIndexPressure -
+        cappedIndexPressure +
+        macroPressure -
         positiveMove * 1.8,
     ),
   )
@@ -136,6 +148,11 @@ export function computeDangerScore(input: {
       label: "SSI index breadth",
       value: input.indexes?.length ? `${input.indexes.length} index snapshots` : "Index stream pending",
       impact: cappedIndexPressure > 6 ? "warning" : input.indexes?.length ? "positive" : "neutral",
+    },
+    {
+      label: "Macro calendar",
+      value: input.macroEvents?.length ? `${input.macroEvents.length} events in watch window` : "No near-term catalysts",
+      impact: macroPressure >= 6 ? "warning" : input.macroEvents?.length ? "neutral" : "positive",
     },
   ]
 
@@ -173,6 +190,17 @@ export function computeDangerScore(input: {
           ? `${typeof input.sectorChange === "number" ? `${input.sectorChange.toFixed(2)}% sector change` : "sector pending"}, ${input.indexes?.length || 0} SSI indexes`
           : "Sector and SSI breadth unavailable",
     },
+    {
+      label: "Macro catalyst window",
+      contribution: Math.round(macroPressure),
+      weight: "Upcoming SoSoValue macro events by proximity and catalyst type",
+      evidence: input.macroEvents?.length
+        ? input.macroEvents
+            .slice(0, 2)
+            .map((event) => `${event.date}: ${event.events.slice(0, 2).join(", ")}`)
+            .join(" / ")
+        : "No high-proximity macro events in the lookahead window",
+    },
   ]
 
   const scenarios: RiskScenario[] = [
@@ -194,6 +222,12 @@ export function computeDangerScore(input: {
       expectedImpact: "Orders remain in dry-run/ready state instead of auto-submitting.",
       scoreDelta: keywordHits > 0 ? -Math.min(keywordHits * 4, 10) : 0,
     },
+    {
+      name: "Macro catalyst gap",
+      trigger: "A high-impact macro event lands inside the overnight protection window.",
+      expectedImpact: "NightWatch raises alert sensitivity while keeping SoDEX execution wallet-approved.",
+      scoreDelta: Math.round(clamp(macroPressure, 0, 10)),
+    },
   ]
 
   const sourceSnippets: SourceSnippet[] = [
@@ -211,16 +245,23 @@ export function computeDangerScore(input: {
         .map((item) => `${item.symbol.toUpperCase()} ${formatWeight(item.weight)}`)
         .join(", ")}`,
     })),
+    ...(input.macroEvents || []).slice(0, 2).map((event) => ({
+      title: event.events.slice(0, 2).join(", "),
+      source: "SoSoValue Macro" as const,
+      detail: `${event.date}, ${event.daysUntil === 0 ? "today" : `${event.daysUntil} day${event.daysUntil === 1 ? "" : "s"} out`} (${event.impact})`,
+    })),
   ]
 
+  const macroSummary =
+    macroPressure >= 6 ? " Macro catalysts are inside the protection window, so alert sensitivity is elevated." : ""
   const summary =
     score >= 82
-      ? "Crash probability is elevated. NightWatch recommends hedging immediately and tightening exits."
+      ? `Crash probability is elevated. NightWatch recommends hedging immediately and tightening exits.${macroSummary}`
       : score >= 65
-        ? "Market stress is building. NightWatch is ready to reduce exposure and protect the overnight book."
+        ? `Market stress is building. NightWatch is ready to reduce exposure and protect the overnight book.${macroSummary}`
         : score >= 38
-          ? "Conditions are mixed. NightWatch will keep stops ready and wait for confirmation before acting."
-          : "Market conditions are calm. NightWatch is monitoring and keeping the protection plan warm."
+          ? `Conditions are mixed. NightWatch will keep stops ready and wait for confirmation before acting.${macroSummary}`
+          : `Market conditions are calm. NightWatch is monitoring and keeping the protection plan warm.${macroSummary}`
 
   return {
     score,

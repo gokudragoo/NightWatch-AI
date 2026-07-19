@@ -7,7 +7,7 @@ import { NightWatchPageShell } from "@/components/nightwatch-page-shell"
 
 export const metadata = {
   title: "Roadmap - NightWatch AI",
-  description: "NightWatch AI Wave 2 proof, SoSoValue and SoDEX architecture, and roadmap for wallet-safe autonomous risk control.",
+  description: "NightWatch AI Wave 3 final build, SoSoValue Macro intelligence, SoDEX guardrails, and wallet-safe autonomous risk control.",
 }
 
 export default function RoadmapPage() {

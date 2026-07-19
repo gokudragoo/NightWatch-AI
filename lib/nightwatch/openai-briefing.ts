@@ -106,6 +106,7 @@ export async function getNightWatchAiBrief(input: BriefInput): Promise<NightWatc
           actions: input.intel.actions.slice(0, 5),
           assets: input.intel.assets.slice(0, 8),
           indexes: input.intel.indexes.slice(0, 4),
+          macroEvents: (input.intel.macroEvents || []).slice(0, 6),
           sodexTickers: input.market.tickers.slice(0, 6),
           requiredJsonShape: {
             headline: "short risk headline",

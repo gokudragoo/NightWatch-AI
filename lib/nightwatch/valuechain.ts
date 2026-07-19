@@ -1,4 +1,4 @@
-const DEFAULT_SPOT_VERIFYING_CONTRACT = "0x0000000000000000000000000000000000000000"
+export const UNCONFIGURED_SPOT_VERIFYING_CONTRACT = "0x0000000000000000000000000000000000000000"
 
 function readEvmAddress(value: string | undefined, fallback: string) {
   return value && /^0x[a-fA-F0-9]{40}$/.test(value) ? value : fallback
@@ -16,6 +16,10 @@ export const VALUECHAIN_TESTNET = {
   },
   spotVerifyingContract: readEvmAddress(
     process.env.NEXT_PUBLIC_SODEX_SPOT_VERIFYING_CONTRACT,
-    DEFAULT_SPOT_VERIFYING_CONTRACT,
+    UNCONFIGURED_SPOT_VERIFYING_CONTRACT,
   ),
+}
+
+export function isValueChainSpotSigningConfigured() {
+  return VALUECHAIN_TESTNET.spotVerifyingContract !== UNCONFIGURED_SPOT_VERIFYING_CONTRACT
 }

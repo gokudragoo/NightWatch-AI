@@ -9,6 +9,7 @@ import {
   Bell,
   BellRing,
   Brain,
+  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
   Clock,
@@ -62,7 +63,7 @@ import type {
   SodexPerpsMarket,
   SodexTicker,
 } from "@/lib/nightwatch/types"
-import { VALUECHAIN_TESTNET } from "@/lib/nightwatch/valuechain"
+import { isValueChainSpotSigningConfigured, VALUECHAIN_TESTNET } from "@/lib/nightwatch/valuechain"
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown>
@@ -590,6 +591,8 @@ export function NightWatchConsole({
   const estimatedProtected = Math.round((portfolioValue * (intel?.score || 40)) / 140)
   const dangerScore = intel?.score || 0
   const activeSession = sessions.find((session) => !session.endedAt)
+  const nextMacroEvent = intel?.macroEvents?.[0]
+  const spotSigningConfigured = isValueChainSpotSigningConfigured()
 
   const morningReport = useMemo(() => {
     const latestSession = activeSession || sessions[0]
@@ -601,12 +604,14 @@ export function NightWatchConsole({
       `Mode: ${modeCopy[mode].label}`,
       `Strategy: ${strategyCopy[strategy].label}`,
       `Latest score: ${intel ? `${intel.score}/100 ${intel.level}` : "pending"}`,
+      `Next macro catalyst: ${nextMacroEvent ? `${nextMacroEvent.date} - ${nextMacroEvent.events.slice(0, 2).join(", ")}` : "none in current watch window"}`,
+      `ValueChain signing domain: ${spotSigningConfigured ? "configured" : "missing verifying contract"}`,
       `Session snapshots: ${latestSnapshots.map((snapshot) => `${snapshot.level} ${snapshot.score}`).join(", ") || "none yet"}`,
       `Alerts prepared: ${alertCount}`,
       `Order records: ${orderCount}`,
       aiBrief ? `AI brief: ${aiBrief.headline}` : "AI brief pending",
     ].join("\n")
-  }, [activeSession, aiBrief, alertEvents.length, intel, mode, orderHistory.length, sessions, strategy])
+  }, [activeSession, aiBrief, alertEvents.length, intel, mode, nextMacroEvent, orderHistory.length, sessions, spotSigningConfigured, strategy])
 
   const loadNightWatchData = useCallback(
     async (options: { withBrief?: boolean; quiet?: boolean } = { withBrief: true }) => {
@@ -626,7 +631,9 @@ export function NightWatchConsole({
         setMarket(marketResponse)
         setPerpsMarket(perpsResponse)
         setStatus(
-          `${intelResponse.sourceStatus === "live" ? "Live SoSoValue and SSI" : "Fallback"} intelligence synced with ${
+          `${intelResponse.sourceStatus === "live" ? "Live SoSoValue and SSI" : "Fallback"} intelligence, ${
+            intelResponse.macroSourceStatus === "live" ? "macro calendar" : "macro calendar unavailable"
+          }, ${
             marketResponse.sourceStatus === "live" ? "SoDEX spot" : "spot unavailable"
           } and ${perpsResponse.sourceStatus === "live" ? "perps" : "perps unavailable"} routes.`,
         )
@@ -911,7 +918,7 @@ export function NightWatchConsole({
     }
 
     if (currentDryRun.venue !== "SoDEX spot") {
-      setStatus("Perps actions are preview-only in Wave 2 until leverage and TP/SL signing is confirmed.")
+      setStatus("Perps actions are preview-only until leverage and TP/SL signing is confirmed.")
       return
     }
 
@@ -932,6 +939,11 @@ export function NightWatchConsole({
 
     if (!Number.isSafeInteger(selectedTicker.symbolID) || !selectedTicker.symbolID || selectedTicker.symbolID <= 0) {
       setStatus("Selected SoDEX market is missing a valid symbol ID. Refresh market data before signing.")
+      return
+    }
+
+    if (!spotSigningConfigured) {
+      setStatus("Configure NEXT_PUBLIC_SODEX_SPOT_VERIFYING_CONTRACT before requesting a ValueChain signature.")
       return
     }
 
@@ -1128,6 +1140,7 @@ export function NightWatchConsole({
             {[
               { label: "SoSoValue", live: intel?.sourceStatus === "live" },
               { label: "SSI indexes", live: Boolean(intel?.indexes.length) },
+              { label: "Macro calendar", live: intel?.macroSourceStatus === "live" },
               { label: "SoDEX spot", live: market?.sourceStatus === "live" },
               { label: "SoDEX perps", live: perpsMarket?.sourceStatus === "live" },
               { label: "OpenAI", live: aiBrief?.sourceStatus === "openai" },
@@ -1296,6 +1309,54 @@ export function NightWatchConsole({
                 </div>
               </Panel>
             </div>
+
+            <Panel>
+              <PanelHeader eyebrow="Wave 3 macro watch" title="Upcoming SoSoValue catalyst calendar" icon={CalendarDays} />
+              <div className="grid gap-3 md:grid-cols-3">
+                {intel?.macroEvents.length ? (
+                  intel.macroEvents.slice(0, 6).map((event) => (
+                    <div key={`${event.date}-${event.events.join("|")}`} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-white">{event.date}</div>
+                          <div className="text-xs text-white/45">
+                            {event.daysUntil === 0 ? "Today" : `${event.daysUntil} day${event.daysUntil === 1 ? "" : "s"} out`}
+                          </div>
+                        </div>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                            event.impact === "danger"
+                              ? "bg-red-300/15 text-red-200"
+                              : event.impact === "warning"
+                                ? "bg-amber-300/15 text-amber-100"
+                                : "bg-white/10 text-white/55"
+                          }`}
+                        >
+                          {event.impact}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {event.events.slice(0, 3).map((item) => (
+                          <div key={item} className="text-sm leading-relaxed text-white/70">
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="md:col-span-3">
+                    <EmptyState
+                      label={
+                        intel?.macroSourceStatus === "fallback"
+                          ? "Macro calendar is unavailable right now; NightWatch keeps risk scoring on market, ETF, news, and SSI data."
+                          : "No macro catalysts are inside the current watch window."
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            </Panel>
 
             <div className="grid gap-3 md:grid-cols-3">
               {(intel?.actions || []).map((action) => (
@@ -1545,6 +1606,20 @@ export function NightWatchConsole({
                   <div className="text-3xl font-bold text-white">{selectedTicker ? formatUsd(selectedTicker.lastPx) : "Syncing"}</div>
                 </div>
 
+                <div className="mb-5 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm font-semibold text-white">EIP-712 signing domain</div>
+                    <span className={spotSigningConfigured ? "text-sm font-medium text-green-300" : "text-sm font-medium text-amber-200"}>
+                      {spotSigningConfigured ? "Configured" : "Missing contract"}
+                    </span>
+                  </div>
+                  <p className="break-all text-xs leading-relaxed text-white/55">
+                    {spotSigningConfigured
+                      ? VALUECHAIN_TESTNET.spotVerifyingContract
+                      : "Set NEXT_PUBLIC_SODEX_SPOT_VERIFYING_CONTRACT before enabling signed spot submissions."}
+                  </p>
+                </div>
+
                 <Button
                   onClick={signAndSubmitProtectionOrder}
                   disabled={
@@ -1556,7 +1631,8 @@ export function NightWatchConsole({
                     currentDryRun.symbol !== selectedTicker.symbol ||
                     !isPositiveIntegerString(accountId) ||
                     !apiKeyName.trim() ||
-                    !isApiKeyName(apiKeyName)
+                    !isApiKeyName(apiKeyName) ||
+                    !spotSigningConfigured
                   }
                   className="w-full rounded-full bg-white px-6 py-6 text-base font-semibold text-black transition-all hover:bg-slate-100 disabled:opacity-50"
                 >
